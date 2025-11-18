@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MP4 + SRT Hardcode</title>
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    input { margin: 10px 0; }
+    #log { white-space: pre-wrap; background:#eee; padding:10px; margin-top:20px; }
+  </style>
+</head>
+<body>
+  <h2>Hardcode SRT Subtitle into MP4</h2>
+
+  <label>Upload MP4:</label>
+  <input type="file" id="videoFile" accept="video/mp4"><br>
+
+  <label>Upload SRT:</label>
+  <input type="file" id="srtFile" accept=".srt"><br>
+
+  <button id="startBtn">Hardcode Now</button>
+
+  <div id="log"></div>
+
+  <script>
+    const { createFFmpeg, fetchFile } = FFmpeg;
+    const ffmpeg = createFFmpeg({ log: true });
+
+    const logBox = document.getElementById('log');
+    const log = (msg) => logBox.textContent += msg + "\n";
+
+    document.getElementById("startBtn").onclick = async () => {
+      const v = document.getElementById("videoFile").files[0];
+      const s = document.getElementById("srtFile").files[0];
+
+      if (!v || !s) {
+        alert("Please upload both MP4 and SRT file.");
+        return;
+      }
+
+      log("Loading FFmpeg...");
+      await ffmpeg.load();
+
+      log("Writing files...");
+      ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(v));
+      ffmpeg.FS('writeFile', 'sub.srt', await fetchFile(s));
+
+      log("Processing... This may take a while.");
+
+      await ffmpeg.run(
+        '-i', 'input.mp4',
+        '-vf', "subtitles=sub.srt:force_style='Fontsize=24'",
+        '-c:a', 'copy',
+        'output.mp4'
+      );
+
+      log("Exporting output.mp4...");
+      const data = ffmpeg.FS('readFile', 'output.mp4');
+
+      const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'hardcoded.mp4';
+      a.textContent = "Download hardcoded video";
+      document.body.appendChild(a);
+
+      log("Done!");
+    };
+  </script>
+</body>
+</html>
